@@ -3,6 +3,7 @@
 This file largely consists of the old _utils.py file. Over time, these functions
 should be moved of this file.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -459,11 +460,6 @@ def moving_average(a: np.ndarray, n: int):
     return ret[n - 1 :] / n
 
 
-# --------------------------------------------------------------------------------
-# Deal with tool parameters
-# --------------------------------------------------------------------------------
-
-
 def update_params(
     old_params: Mapping[str, Any],
     new_params: Mapping[str, Any],
@@ -487,16 +483,12 @@ def update_params(
     -------
     updated_params
     """
-    updated_params = dict(old_params)
-    if new_params:  # allow for new_params to be None
+    updated_params = old_params.copy()
+    if new_params:
         for key, val in new_params.items():
-            if key not in old_params and check:
+            if check and key not in old_params:
                 raise ValueError(
-                    "'"
-                    + key
-                    + "' is not a valid parameter key, "
-                    + "consider one of \n"
-                    + str(list(old_params.keys()))
+                    f"'{key}' is not a valid parameter key, consider one of \n{list(old_params.keys())}"
                 )
             if val is not None:
                 updated_params[key] = val
@@ -610,7 +602,9 @@ def select_groups(
     return groups_order_subset, groups_masks
 
 
-def warn_with_traceback(message, category, filename, lineno, file=None, line=None):  # noqa: PLR0917
+def warn_with_traceback(
+    message, category, filename, lineno, file=None, line=None
+):  # noqa: PLR0917
     """Get full tracebacks when warning is raised by setting
 
     warnings.showwarning = warn_with_traceback
