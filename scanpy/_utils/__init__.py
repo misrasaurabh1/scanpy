@@ -3,6 +3,7 @@
 This file largely consists of the old _utils.py file. Over time, these functions
 should be moved of this file.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -147,13 +148,14 @@ def _import_name(name: str) -> Any:
 
 
 def _one_of_ours(obj, root: str):
-    return (
-        hasattr(obj, "__name__")
-        and not obj.__name__.split(".")[-1].startswith("_")
-        and getattr(
-            obj, "__module__", getattr(obj, "__qualname__", obj.__name__)
-        ).startswith(root)
-    )
+    obj_name = getattr(obj, "__name__", None)
+    if obj_name and not obj_name.split(".")[-1].startswith("_"):
+        obj_module = getattr(obj, "__module__", None)
+        obj_qualname = (
+            obj_module if obj_module else getattr(obj, "__qualname__", obj_name)
+        )
+        return obj_qualname.startswith(root)
+    return False
 
 
 def descend_classes_and_funcs(mod: ModuleType, root: str, encountered=None):
@@ -610,7 +612,9 @@ def select_groups(
     return groups_order_subset, groups_masks
 
 
-def warn_with_traceback(message, category, filename, lineno, file=None, line=None):  # noqa: PLR0917
+def warn_with_traceback(
+    message, category, filename, lineno, file=None, line=None
+):  # noqa: PLR0917
     """Get full tracebacks when warning is raised by setting
 
     warnings.showwarning = warn_with_traceback
