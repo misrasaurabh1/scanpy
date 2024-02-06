@@ -3,6 +3,7 @@
 This file largely consists of the old _utils.py file. Over time, these functions
 should be moved of this file.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -555,7 +556,6 @@ def _check_nonnegative_integers_in_mem(X: _MemoryArray) -> bool:
     return not np.any((data % 1) != 0)
 
 
-@check_nonnegative_integers.register(DaskArray)
 def _check_nonnegative_integers_dask(X: DaskArray) -> DaskArray:
     return X.map_blocks(check_nonnegative_integers, dtype=bool, drop_axis=(0, 1))
 
@@ -610,7 +610,9 @@ def select_groups(
     return groups_order_subset, groups_masks
 
 
-def warn_with_traceback(message, category, filename, lineno, file=None, line=None):  # noqa: PLR0917
+def warn_with_traceback(
+    message, category, filename, lineno, file=None, line=None
+):  # noqa: PLR0917
     """Get full tracebacks when warning is raised by setting
 
     warnings.showwarning = warn_with_traceback
@@ -835,3 +837,14 @@ def _choose_graph(adata, obsp, neighbors_key):
                 "to compute a neighborhood graph."
             )
         return neighbors["connectivities"]
+
+
+def check_nonnegative_integers(X):
+    """
+    Checks values of X to ensure it is count data
+    if the type of X is DaskArray, the corresponding function is chosen
+    """
+    if isinstance(X, DaskArray):
+        return _check_nonnegative_integers_dask(X)
+    else:
+        raise NotImplementedError
