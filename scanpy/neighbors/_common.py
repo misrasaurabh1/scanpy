@@ -25,9 +25,14 @@ def _remove_self_column(
     indices: NDArray[np.int32 | np.int64],
     distances: NDArray[np.float32 | np.float64],
 ) -> tuple[NDArray[np.int32 | np.int64], NDArray[np.float32 | np.float64]]:
-    if not _has_self_column(indices, distances):
+
+    if not (
+        (distances[:, 0] == 0.0).all()
+        and (indices[:, 0] == np.arange(indices.shape[0])).all()
+    ):
         msg = "The first neighbor should be the cell itself."
         raise AssertionError(msg)
+
     return indices[:, 1:], distances[:, 1:]
 
 
