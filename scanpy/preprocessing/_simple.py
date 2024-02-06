@@ -2,6 +2,7 @@
 
 Compositions of these functions are found in sc.preprocess.recipes.
 """
+
 from __future__ import annotations
 
 import warnings
@@ -193,59 +194,17 @@ def filter_cells(
     return cell_subset, number_per_cell
 
 
-@old_positionals(
-    "min_counts", "min_cells", "max_counts", "max_cells", "inplace", "copy"
-)
 def filter_genes(
-    data: AnnData | spmatrix | np.ndarray,
+    data: Union[AnnData, spmatrix, np.ndarray],
     *,
-    min_counts: int | None = None,
-    min_cells: int | None = None,
-    max_counts: int | None = None,
-    max_cells: int | None = None,
+    min_counts: Optional[int] = None,
+    min_cells: Optional[int] = None,
+    max_counts: Optional[int] = None,
+    max_cells: Optional[int] = None,
     inplace: bool = True,
     copy: bool = False,
-) -> AnnData | tuple[np.ndarray, np.ndarray] | None:
-    """\
-    Filter genes based on number of cells or counts.
+) -> Union[AnnData, Tuple[np.ndarray, np.ndarray], None]:
 
-    Keep genes that have at least `min_counts` counts or are expressed in at
-    least `min_cells` cells or have at most `max_counts` counts or are expressed
-    in at most `max_cells` cells.
-
-    Only provide one of the optional parameters `min_counts`, `min_cells`,
-    `max_counts`, `max_cells` per call.
-
-    Parameters
-    ----------
-    data
-        An annotated data matrix of shape `n_obs` × `n_vars`. Rows correspond
-        to cells and columns to genes.
-    min_counts
-        Minimum number of counts required for a gene to pass filtering.
-    min_cells
-        Minimum number of cells expressed required for a gene to pass filtering.
-    max_counts
-        Maximum number of counts required for a gene to pass filtering.
-    max_cells
-        Maximum number of cells expressed required for a gene to pass filtering.
-    inplace
-        Perform computation inplace or return result.
-
-    Returns
-    -------
-    Depending on `inplace`, returns the following arrays or directly subsets
-    and annotates the data matrix
-
-    gene_subset
-        Boolean index mask that does filtering. `True` means that the
-        gene is kept. `False` means the gene is removed.
-    number_per_gene
-        Depending on what was thresholded (`counts` or `cells`), the array stores
-        `n_counts` or `n_cells` per gene.
-    """
-    if copy:
-        logg.warning("`copy` is deprecated, use `inplace` instead.")
     n_given_options = sum(
         option is not None for option in [min_cells, min_counts, max_cells, max_counts]
     )
@@ -255,27 +214,10 @@ def filter_genes(
             "`min_cells`, `max_counts`, `max_cells` per call."
         )
 
-    if isinstance(data, AnnData):
-        adata = data.copy() if copy else data
-        gene_subset, number = materialize_as_ndarray(
-            filter_genes(
-                adata.X,
-                min_cells=min_cells,
-                min_counts=min_counts,
-                max_cells=max_cells,
-                max_counts=max_counts,
-            )
-        )
-        if not inplace:
-            return gene_subset, number
-        if min_cells is None and max_cells is None:
-            adata.var["n_counts"] = number
-        else:
-            adata.var["n_cells"] = number
-        adata._inplace_subset_var(gene_subset)
-        return adata if copy else None
+    copy = copy if isinstance(data, AnnData) else False
 
-    X = data  # proceed with processing the data matrix
+    X = data.X if isinstance(data, AnnData) else data
+
     min_number = min_counts if min_cells is None else min_cells
     max_number = max_counts if max_cells is None else max_cells
     number_per_gene = np.sum(
@@ -290,18 +232,24 @@ def filter_genes(
 
     s = np.sum(~gene_subset)
     if s > 0:
-        msg = f"filtered out {s} genes that are detected "
-        if min_cells is not None or min_counts is not None:
-            msg += "in less than "
-            msg += (
-                f"{min_cells} cells" if min_counts is None else f"{min_counts} counts"
-            )
-        if max_cells is not None or max_counts is not None:
-            msg += "in more than "
-            msg += (
-                f"{max_cells} cells" if max_counts is None else f"{max_counts} counts"
-            )
+        option = min_cells if min_counts is None else min_counts
+        prefix = f"{s} genes that are detected in less than "
+        msg = prefix + (f"{option} cells" if option is not None else f"{option} counts")
         logg.info(msg)
+
+    if isinstance(data, AnnData):
+        adata = data.copy() if copy else data
+        gene_subset, number_per_gene = (
+            materialize_as_ndarray(gene_subset),
+            number_per_gene,
+        )
+        if not inplace:
+            return gene_subset, number_per_gene
+        var_key = "n_counts" if min_cells is None and max_cells is None else "n_cells"
+        adata.var[var_key] = number_per_gene
+        adata._inplace_subset_var(gene_subset)
+        return adata if copy else None
+
     return gene_subset, number_per_gene
 
 
