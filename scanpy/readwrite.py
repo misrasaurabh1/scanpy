@@ -1,5 +1,6 @@
 """Reading and Writing
 """
+
 from __future__ import annotations
 
 import json
@@ -931,17 +932,25 @@ def convert_bool(string: str) -> tuple[bool, bool]:
 
 
 def convert_string(string: str) -> int | float | bool | str | None:
-    """Convert string to int, float or bool."""
-    if is_int(string):
-        return int(string)
-    elif is_float(string):
-        return float(string)
-    elif convert_bool(string)[0]:
-        return convert_bool(string)[1]
+    """Convert string to int, float, bool, None, or keep as str if not convertible."""
+    if string == "True":
+        return True
+    elif string == "False":
+        return False
     elif string == "None":
         return None
     else:
-        return string
+        try:
+            return int(string)
+        except ValueError:
+            pass
+
+        try:
+            return float(string)
+        except ValueError:
+            pass
+
+    return string
 
 
 # -------------------------------------------------------------------------------
@@ -1005,13 +1014,16 @@ def _download(url: str, path: Path):
 
         with open_url as resp:
             total = resp.info().get("content-length", None)
-            with tqdm(
-                unit="B",
-                unit_scale=True,
-                miniters=1,
-                unit_divisor=1024,
-                total=total if total is None else int(total),
-            ) as t, path.open("wb") as f:
+            with (
+                tqdm(
+                    unit="B",
+                    unit_scale=True,
+                    miniters=1,
+                    unit_divisor=1024,
+                    total=total if total is None else int(total),
+                ) as t,
+                path.open("wb") as f,
+            ):
                 block = resp.read(blocksize)
                 while block:
                     f.write(block)
