@@ -57,7 +57,7 @@ def krumsiek11() -> AnnData:
 
 
 def paul15() -> AnnData:
-    return _paul15().copy()
+    return _paul15()
 
 
 # Derived datasets
