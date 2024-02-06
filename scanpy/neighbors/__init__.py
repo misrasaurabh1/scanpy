@@ -317,7 +317,8 @@ class OnFlySymMatrix:
 
     def restrict(self, index_array):
         """Generate a view restricted to a subset of indices."""
-        new_shape = index_array.shape[0], index_array.shape[0]
+        new_dim = index_array.shape[0]
+        new_shape = new_dim, new_dim
         return OnFlySymMatrix(
             self.get_row,
             new_shape,
