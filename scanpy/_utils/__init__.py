@@ -3,6 +3,7 @@
 This file largely consists of the old _utils.py file. Over time, these functions
 should be moved of this file.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -74,25 +75,34 @@ def check_versions():
 
 
 def getdoc(c_or_f: Callable | type) -> str | None:
-    if getattr(c_or_f, "__doc__", None) is None:
+
+    c_or_f_doc = getattr(c_or_f, "__doc__", None)
+    if c_or_f_doc is None:
         return None
+
     doc = inspect.getdoc(c_or_f)
-    if isinstance(c_or_f, type) and hasattr(c_or_f, "__init__"):
-        sig = inspect.signature(c_or_f.__init__)
-    else:
-        sig = inspect.signature(c_or_f)
+    signature_func = (
+        c_or_f.__init__
+        if isinstance(c_or_f, type) and hasattr(c_or_f, "__init__")
+        else c_or_f
+    )
+    sig = inspect.signature(signature_func)
+    params = sig.parameters
 
     def type_doc(name: str):
-        param: inspect.Parameter = sig.parameters[name]
+        param = params[name]
         cls = getattr(param.annotation, "__qualname__", repr(param.annotation))
-        if param.default is not param.empty:
-            return f"{cls}, optional (default: {param.default!r})"
+        param_default = param.default
+        if param_default is not param.empty:
+            return f"{cls}, optional (default: {param_default!r})"
         else:
             return cls
 
+    doc_lines = doc.split("\n")
+
     return "\n".join(
-        f"{line} : {type_doc(line)}" if line.strip() in sig.parameters else line
-        for line in doc.split("\n")
+        f"{line} : {type_doc(line)}" if line.strip() in params else line
+        for line in doc_lines
     )
 
 
@@ -610,7 +620,9 @@ def select_groups(
     return groups_order_subset, groups_masks
 
 
-def warn_with_traceback(message, category, filename, lineno, file=None, line=None):  # noqa: PLR0917
+def warn_with_traceback(
+    message, category, filename, lineno, file=None, line=None
+):  # noqa: PLR0917
     """Get full tracebacks when warning is raised by setting
 
     warnings.showwarning = warn_with_traceback
