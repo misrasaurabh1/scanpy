@@ -3,6 +3,7 @@
 This file largely consists of the old _utils.py file. Over time, these functions
 should be moved of this file.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -375,44 +376,32 @@ def get_associated_colors_of_groups(reference_colors, asso_matrix):
 
 
 def identify_groups(ref_labels, pred_labels, return_overlaps=False):
-    """Which predicted label explains which reference label?
-
-    A predicted label explains the reference label which maximizes the minimum
-    of ``relative_overlaps_pred`` and ``relative_overlaps_ref``.
-
-    Compare this with ``compute_association_matrix_of_groups``.
-
-    Returns
-    -------
-    A dictionary of length ``len(np.unique(ref_labels))`` that stores for each
-    reference label the predicted label that best explains it.
-
-    If ``return_overlaps`` is ``True``, this will in addition return the overlap
-    of the reference group with the predicted group; normalized with respect to
-    the reference group size and the predicted group size, respectively.
-    """
-    ref_unique, ref_counts = np.unique(ref_labels, return_counts=True)
-    ref_dict = dict(zip(ref_unique, ref_counts))
-    pred_unique, pred_counts = np.unique(pred_labels, return_counts=True)
-    pred_dict = dict(zip(pred_unique, pred_counts))
+    ref_counts = np.bincount(ref_labels)
+    pred_counts = np.bincount(pred_labels)
+    ref_unique = np.nonzero(ref_counts)[0]
+    pred_unique = np.nonzero(pred_counts)[0]
     associated_predictions = {}
     associated_overlaps = {}
+
     for ref_label in ref_unique:
+        labels_equal_ref = ref_label == ref_labels
+        sub_pred_labels = pred_labels[labels_equal_ref]
         sub_pred_unique, sub_pred_counts = np.unique(
-            pred_labels[ref_label == ref_labels], return_counts=True
+            sub_pred_labels, return_counts=True
         )
-        relative_overlaps_pred = [
-            sub_pred_counts[i] / pred_dict[n] for i, n in enumerate(sub_pred_unique)
-        ]
-        relative_overlaps_ref = [
-            sub_pred_counts[i] / ref_dict[ref_label]
-            for i, n in enumerate(sub_pred_unique)
-        ]
-        relative_overlaps = np.c_[relative_overlaps_pred, relative_overlaps_ref]
-        relative_overlaps_min = np.min(relative_overlaps, axis=1)
-        pred_best_index = np.argsort(relative_overlaps_min)[::-1]
-        associated_predictions[ref_label] = sub_pred_unique[pred_best_index]
-        associated_overlaps[ref_label] = relative_overlaps[pred_best_index]
+
+        overlap_pred = sub_pred_counts / pred_counts[sub_pred_unique]
+        overlap_ref = sub_pred_counts / ref_counts[ref_label]
+
+        relative_overlaps = np.minimum(overlap_pred, overlap_ref)
+        pred_best_index = np.argmax(relative_overlaps)
+
+        best_pred_unique = sub_pred_unique[pred_best_index]
+        best_relative_overlap = relative_overlaps[pred_best_index]
+
+        associated_predictions[ref_label] = best_pred_unique
+        associated_overlaps[ref_label] = best_relative_overlap
+
     if return_overlaps:
         return associated_predictions, associated_overlaps
     else:
@@ -610,7 +599,9 @@ def select_groups(
     return groups_order_subset, groups_masks
 
 
-def warn_with_traceback(message, category, filename, lineno, file=None, line=None):  # noqa: PLR0917
+def warn_with_traceback(
+    message, category, filename, lineno, file=None, line=None
+):  # noqa: PLR0917
     """Get full tracebacks when warning is raised by setting
 
     warnings.showwarning = warn_with_traceback
