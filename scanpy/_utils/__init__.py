@@ -3,6 +3,7 @@
 This file largely consists of the old _utils.py file. Over time, these functions
 should be moved of this file.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -213,13 +214,10 @@ def _check_use_raw(adata: AnnData, use_raw: None | bool) -> bool:
 
     My intentention here is to also provide a single place to throw a deprecation warning from in future.
     """
+
     if use_raw is not None:
         return use_raw
-    else:
-        if adata.raw is not None:
-            return True
-        else:
-            return False
+    return adata.raw is not None
 
 
 # --------------------------------------------------------------------------------
@@ -610,7 +608,9 @@ def select_groups(
     return groups_order_subset, groups_masks
 
 
-def warn_with_traceback(message, category, filename, lineno, file=None, line=None):  # noqa: PLR0917
+def warn_with_traceback(
+    message, category, filename, lineno, file=None, line=None
+):  # noqa: PLR0917
     """Get full tracebacks when warning is raised by setting
 
     warnings.showwarning = warn_with_traceback
