@@ -3,6 +3,7 @@
 This file largely consists of the old _utils.py file. Over time, these functions
 should be moved of this file.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -127,22 +128,19 @@ def renamed_arg(old_name, new_name, *, pos_0: bool = False):
 
 
 def _import_name(name: str) -> Any:
-    from importlib import import_module
-
     parts = name.split(".")
-    obj = import_module(parts[0])
-    for i, name in enumerate(parts[1:]):
+
+    try:
+        obj = __import__(parts[0])
+    except ImportError:
+        raise ImportError(f"Cannot import name: {name}")
+
+    for part in parts[1:]:
         try:
-            obj = import_module(f"{obj.__name__}.{name}")
-        except ModuleNotFoundError:
-            break
-    else:
-        i = len(parts)
-    for name in parts[i + 1 :]:
-        try:
-            obj = getattr(obj, name)
+            obj = getattr(obj, part)
         except AttributeError:
-            raise RuntimeError(f"{parts[:i]}, {parts[i + 1:]}, {obj} {name}")
+            raise ImportError(f"Cannot import name {name} from {obj.__name__}")
+
     return obj
 
 
@@ -610,7 +608,9 @@ def select_groups(
     return groups_order_subset, groups_masks
 
 
-def warn_with_traceback(message, category, filename, lineno, file=None, line=None):  # noqa: PLR0917
+def warn_with_traceback(
+    message, category, filename, lineno, file=None, line=None
+):  # noqa: PLR0917
     """Get full tracebacks when warning is raised by setting
 
     warnings.showwarning = warn_with_traceback
