@@ -3,6 +3,7 @@
 This file largely consists of the old _utils.py file. Over time, these functions
 should be moved of this file.
 """
+
 from __future__ import annotations
 
 import importlib.util
@@ -610,7 +611,9 @@ def select_groups(
     return groups_order_subset, groups_masks
 
 
-def warn_with_traceback(message, category, filename, lineno, file=None, line=None):  # noqa: PLR0917
+def warn_with_traceback(
+    message, category, filename, lineno, file=None, line=None
+):  # noqa: PLR0917
     """Get full tracebacks when warning is raised by setting
 
     warnings.showwarning = warn_with_traceback
