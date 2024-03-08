@@ -130,7 +130,7 @@ def _ind_dist_shortcut(
     """Shortcut for scipy or RAPIDS style distance matrices."""
     # Check if each row has the correct number of entries
     nnzs = D.getnnz(axis=1)
-    if not is_constant(nnzs):
+    if nnzs.min() != nnzs.max():
         msg = (
             "Sparse matrix has no constant number of neighbors per row. "
             "Cannot efficiently get indices and distances."
