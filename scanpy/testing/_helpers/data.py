@@ -45,7 +45,7 @@ def pbmc3k_processed() -> AnnData:
 
 
 def pbmc68k_reduced() -> AnnData:
-    return _pbmc68k_reduced().copy()
+    return _pbmc68k_reduced()
 
 
 def krumsiek11() -> AnnData:
@@ -53,7 +53,7 @@ def krumsiek11() -> AnnData:
         warnings.filterwarnings(
             "ignore", "Observation names are not unique", module="anndata"
         )
-        return _krumsiek11().copy()
+        return _krumsiek11()
 
 
 def paul15() -> AnnData:
