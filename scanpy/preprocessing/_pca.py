@@ -462,10 +462,4 @@ def _handle_sklearn_args(svd_solver: str, method: str) -> str:
 
 
 def _handle_x_args(lib, svd_solver, method, method2args, method2default):
-    if svd_solver not in method2args[method]:
-        if svd_solver is not None:
-            warnings.warn(
-                f"Ignoring {svd_solver} and using {method2default[method]}, {lib}.decomposition.{method} only supports {method2args[method]}"
-            )
-        svd_solver = method2default[method]
-    return svd_solver
+    return svd_solver if svd_solver in method2args[method] else method2default[method]
