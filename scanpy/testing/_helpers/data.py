@@ -33,11 +33,8 @@ _krumsiek11 = cache(sc.datasets.krumsiek11)
 _paul15 = cache(sc.datasets.paul15)
 
 
-# Functions returning copies
-
-
 def pbmc3k() -> AnnData:
-    return _pbmc3k().copy()
+    return _pbmc3k()
 
 
 def pbmc3k_processed() -> AnnData:
@@ -45,7 +42,7 @@ def pbmc3k_processed() -> AnnData:
 
 
 def pbmc68k_reduced() -> AnnData:
-    return _pbmc68k_reduced().copy()
+    return _pbmc68k_reduced()
 
 
 def krumsiek11() -> AnnData:
