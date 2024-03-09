@@ -2,6 +2,7 @@
 
 Compositions of these functions are found in sc.preprocess.recipes.
 """
+
 from __future__ import annotations
 
 import warnings
@@ -1109,25 +1110,24 @@ def _downsample_per_cell(X, counts_per_cell, random_state, replace):
 def _downsample_total_counts(X, total_counts, random_state, replace):
     total_counts = int(total_counts)
     total = X.sum()
-    if total < total_counts:
-        return X
-    if issparse(X):
-        original_type = type(X)
-        if not isspmatrix_csr(X):
-            X = csr_matrix(X)
-        _downsample_array(
-            X.data,
-            total_counts,
-            random_state=random_state,
-            replace=replace,
-            inplace=True,
-        )
-        X.eliminate_zeros()
-        if original_type is not csr_matrix:
-            X = original_type(X)
-    else:
-        v = X.reshape(np.multiply(*X.shape))
-        _downsample_array(v, total_counts, random_state, replace=replace, inplace=True)
+    if total >= total_counts:
+        if issparse(X):
+            original_type = type(X)
+            X_csr = csr_matrix(X) if not isspmatrix_csr(X) else X
+            _downsample_array(
+                X_csr.data,
+                total_counts,
+                random_state=random_state,
+                replace=replace,
+                inplace=True,
+            )
+            X_csr.eliminate_zeros()
+            X = original_type(X_csr)
+        else:
+            X = X.reshape(np.multiply(*X.shape))
+            _downsample_array(
+                X, total_counts, random_state, replace=replace, inplace=True
+            )
     return X
 
 
@@ -1139,27 +1139,23 @@ def _downsample_array(
     replace: bool = True,
     inplace: bool = False,
 ):
-    """\
-    Evenly reduce counts in cell to target amount.
+    """Evenly reduce counts in cell to target amount.
 
     This is an internal function and has some restrictions:
 
     * total counts in cell must be less than target
     """
     np.random.seed(random_state)
-    cumcounts = col.cumsum()
+    total = col.sum()
     if inplace:
         col[:] = 0
     else:
         col = np.zeros_like(col)
-    total = np.int_(cumcounts[-1])
-    sample = np.random.choice(total, target, replace=replace)
-    sample.sort()
-    geneptr = 0
-    for count in sample:
-        while count >= cumcounts[geneptr]:
-            geneptr += 1
-        col[geneptr] += 1
+    if total > 0:
+        sample = np.random.choice(total, target, replace=replace)
+        sample.sort()
+        counts = np.histogram(sample, bins=np.arange(total + 1))[0]
+        np.add.at(col, counts.nonzero(), counts[counts.nonzero()])
     return col
 
 
