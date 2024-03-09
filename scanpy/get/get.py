@@ -1,4 +1,5 @@
 """This module contains helper functions for accessing data."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Literal
@@ -13,12 +14,7 @@ if TYPE_CHECKING:
 
     from numpy.typing import NDArray
 
-# --------------------------------------------------------------------------------
-# Plotting data helpers
-# --------------------------------------------------------------------------------
 
-
-# TODO: implement diffxpy method, make singledispatch
 def rank_genes_groups_df(
     adata: AnnData,
     group: str | Iterable[str],
@@ -29,8 +25,7 @@ def rank_genes_groups_df(
     log2fc_max: float | None = None,
     gene_symbols: str | None = None,
 ) -> pd.DataFrame:
-    """\
-    :func:`scanpy.tl.rank_genes_groups` results in the form of a
+    """:func:`scanpy.tl.rank_genes_groups` results in the form of a
     :class:`~pandas.DataFrame`.
 
     Params
@@ -60,6 +55,7 @@ def rank_genes_groups_df(
     >>> sc.tl.rank_genes_groups(pbmc, groupby="louvain", use_raw=True)
     >>> dedf = sc.get.rank_genes_groups_df(pbmc, group="0")
     """
+
     if isinstance(group, str):
         group = [group]
     if group is None:
@@ -70,21 +66,29 @@ def rank_genes_groups_df(
     else:
         colnames = ["names", "scores", "logfoldchanges", "pvals", "pvals_adj"]
 
-    d = [pd.DataFrame(adata.uns[key][c])[group] for c in colnames]
-    d = pd.concat(d, axis=1, names=[None, "group"], keys=colnames)
-    d = d.stack(level=1).reset_index()
-    d["group"] = pd.Categorical(d["group"], categories=group)
-    d = d.sort_values(["group", "level_0"]).drop(columns="level_0")
+    data = [pd.DataFrame(adata.uns[key][c])[group] for c in colnames]
+    data_concat = (
+        pd.concat(data, axis=1, names=[None, "group"], keys=colnames)
+        .stack(level=1)
+        .reset_index()
+    )
+    data_concat["group"] = pd.Categorical(data_concat["group"], categories=group)
+    data_resulting = data_concat.sort_values(["group", "level_0"]).drop(
+        columns="level_0"
+    )
 
     if method != "logreg":
+        conditions = []
         if pval_cutoff is not None:
-            d = d[d["pvals_adj"] < pval_cutoff]
+            conditions.append(data_resulting["pvals_adj"] < pval_cutoff)
         if log2fc_min is not None:
-            d = d[d["logfoldchanges"] > log2fc_min]
+            conditions.append(data_resulting["logfoldchanges"] > log2fc_min)
         if log2fc_max is not None:
-            d = d[d["logfoldchanges"] < log2fc_max]
+            conditions.append(data_resulting["logfoldchanges"] < log2fc_max)
+        if conditions:
+            data_resulting = data_resulting[np.all(conditions, axis=0)]
     if gene_symbols is not None:
-        d = d.join(adata.var[gene_symbols], on="names")
+        data_resulting = data_resulting.join(adata.var[gene_symbols], on="names")
 
     for pts, name in {"pts": "pct_nz_group", "pts_rest": "pct_nz_reference"}.items():
         if pts in adata.uns[key]:
@@ -94,13 +98,12 @@ def rank_genes_groups_df(
                 .reset_index()
                 .melt(id_vars="names", var_name="group", value_name=name)
             )
-            d = d.merge(pts_df)
+            data_resulting = data_resulting.merge(pts_df)
 
-    # remove group column for backward compat if len(group) == 1
     if len(group) == 1:
-        d.drop(columns="group", inplace=True)
+        data_resulting.drop(columns="group", inplace=True)
 
-    return d.reset_index(drop=True)
+    return data_resulting.reset_index(drop=True)
 
 
 def _check_indices(
