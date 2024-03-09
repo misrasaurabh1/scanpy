@@ -1,5 +1,6 @@
 """Rank genes according to differential expression.
 """
+
 from __future__ import annotations
 
 from math import floor
