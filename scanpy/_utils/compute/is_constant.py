@@ -31,13 +31,11 @@ def _check_axis_supported(wrapped: C) -> C:
 
 
 @overload
-def is_constant(a: NDArray, axis: None = None) -> bool:
-    ...
+def is_constant(a: NDArray, axis: None = None) -> bool: ...
 
 
 @overload
-def is_constant(a: NDArray, axis: Literal[0, 1]) -> NDArray[np.bool_]:
-    ...
+def is_constant(a: NDArray, axis: Literal[0, 1]) -> NDArray[np.bool_]: ...
 
 
 @_check_axis_supported
@@ -89,8 +87,7 @@ def _(a: NDArray, axis: Literal[0, 1] | None = None) -> bool | NDArray[np.bool_]
 
 
 def _is_constant_rows(a: NDArray) -> NDArray[np.bool_]:
-    b = np.broadcast_to(a[:, 0][:, np.newaxis], a.shape)
-    return (a == b).all(axis=1)
+    return np.all(a == a[:, [0]], axis=1)
 
 
 @is_constant.register(sparse.csr_matrix)
