@@ -1,6 +1,7 @@
 """\
 Exporting to formats for other software.
 """
+
 from __future__ import annotations
 
 import json
@@ -344,8 +345,10 @@ def _write_color_tracks(ctracks, fname):
 
 
 def _frac_to_hex(frac):
-    rgb = tuple(np.array(np.array(plt.cm.jet(frac)[:3]) * 255, dtype=int))
-    return "#{:02x}{:02x}{:02x}".format(*rgb)
+    rgb = plt.cm.jet(frac)
+    return "#{:02x}{:02x}{:02x}".format(
+        int(rgb[0] * 255), int(rgb[1] * 255), int(rgb[2] * 255)
+    )
 
 
 def _get_color_stats_genes(color_stats, E, gene_list):
