@@ -1,5 +1,6 @@
 """Rank genes according to differential expression.
 """
+
 from __future__ import annotations
 
 from math import floor
@@ -71,17 +72,18 @@ def _ranks(X, mask=None, mask_rest=None):
 
 
 def _tiecorrect(ranks):
-    size = np.float64(ranks.shape[0])
+    size = ranks.shape[0]
     if size < 2:
         return np.repeat(ranks.shape[1], 1.0)
 
-    arr = np.sort(ranks, axis=0)
-    tf = np.insert(arr[1:] != arr[:-1], (0, arr.shape[0] - 1), True, axis=0)
-    idx = np.where(tf, np.arange(tf.shape[0])[:, None], 0)
-    idx = np.sort(idx, axis=0)
-    cnt = np.diff(idx, axis=0).astype(np.float64)
+    arr = ranks.argsort(axis=0)
+    tf = np.ones_like(arr)
+    np.not_equal(arr[1:], arr[:-1], out=tf[1:])
+    idx = np.arange(arr.shape[0])[:, None] * tf
+    cnt = np.maximum(idx[1:] - idx[:-1], 1)
+    cnt_sum = cnt.sum(axis=0).astype(float)
 
-    return 1.0 - (cnt**3 - cnt).sum(axis=0) / (size**3 - size)
+    return 1.0 - (cnt_sum**3 - cnt_sum) / (size**3 - size)
 
 
 class _RankGenes:
