@@ -1273,15 +1273,23 @@ def _basis2name(basis):
     component_name = (
         "DC"
         if basis == "diffmap"
-        else "tSNE"
-        if basis == "tsne"
-        else "UMAP"
-        if basis == "umap"
-        else "PC"
-        if basis == "pca"
-        else basis.replace("draw_graph_", "").upper()
-        if "draw_graph" in basis
-        else basis
+        else (
+            "tSNE"
+            if basis == "tsne"
+            else (
+                "UMAP"
+                if basis == "umap"
+                else (
+                    "PC"
+                    if basis == "pca"
+                    else (
+                        basis.replace("draw_graph_", "").upper()
+                        if "draw_graph" in basis
+                        else basis
+                    )
+                )
+            )
+        )
     )
     return component_name
 
@@ -1292,15 +1300,15 @@ def _check_spot_size(spatial_data: Mapping | None, spot_size: float | None) -> f
 
     This is a required argument for spatial plots.
     """
-    if spatial_data is None and spot_size is None:
+    if spot_size is not None:
+        return spot_size
+    elif spatial_data is not None:
+        return spatial_data["scalefactors"]["spot_diameter_fullres"]
+    else:
         raise ValueError(
             "When .uns['spatial'][library_id] does not exist, spot_size must be "
             "provided directly."
         )
-    elif spot_size is None:
-        return spatial_data["scalefactors"]["spot_diameter_fullres"]
-    else:
-        return spot_size
 
 
 def _check_scale_factor(
