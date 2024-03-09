@@ -1,5 +1,6 @@
 """Rank genes according to differential expression.
 """
+
 from __future__ import annotations
 
 from math import floor
@@ -27,13 +28,11 @@ _CorrMethod = Literal["benjamini-hochberg", "bonferroni"]
 
 
 def _select_top_n(scores: NDArray, n_top: int):
-    n_from = scores.shape[0]
-    reference_indices = np.arange(n_from, dtype=int)
-    partition = np.argpartition(scores, -n_top)[-n_top:]
-    partial_indices = np.argsort(scores[partition])[::-1]
-    global_indices = reference_indices[partition][partial_indices]
-
-    return global_indices
+    partition_indices = np.argpartition(scores, -n_top)[-n_top:]
+    sorted_partition_indices = partition_indices[
+        scores[partition_indices].argsort()[::-1]
+    ]
+    return sorted_partition_indices
 
 
 def _ranks(X, mask=None, mask_rest=None):
