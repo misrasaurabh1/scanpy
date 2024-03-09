@@ -2,6 +2,7 @@
 
 Compositions of these functions are found in sc.preprocess.recipes.
 """
+
 from __future__ import annotations
 
 import warnings
@@ -364,18 +365,19 @@ def log1p_sparse(X: spmatrix, *, base: Number | None = None, copy: bool = False)
 
 @log1p.register(np.ndarray)
 def log1p_array(X: np.ndarray, *, base: Number | None = None, copy: bool = False):
-    # Can force arrays to be np.ndarrays, but would be useful to not
-    # X = check_array(X, dtype=(np.float64, np.float32), ensure_2d=False, copy=copy)
-    if copy:
-        if not np.issubdtype(X.dtype, np.floating):
-            X = X.astype(float)
-        else:
-            X = X.copy()
-    elif not (np.issubdtype(X.dtype, np.floating) or np.issubdtype(X.dtype, complex)):
-        X = X.astype(float)
+    copy_condition = copy or not (
+        np.issubdtype(X.dtype, np.floating) or np.issubdtype(X.dtype, complex)
+    )
+
+    if copy_condition:
+        X = X.astype(float, copy=True)
+
     np.log1p(X, out=X)
+
     if base is not None:
-        np.divide(X, np.log(base), out=X)
+        log_base = np.log(base)
+        X /= log_base
+
     return X
 
 
