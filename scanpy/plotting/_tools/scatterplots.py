@@ -1273,15 +1273,23 @@ def _basis2name(basis):
     component_name = (
         "DC"
         if basis == "diffmap"
-        else "tSNE"
-        if basis == "tsne"
-        else "UMAP"
-        if basis == "umap"
-        else "PC"
-        if basis == "pca"
-        else basis.replace("draw_graph_", "").upper()
-        if "draw_graph" in basis
-        else basis
+        else (
+            "tSNE"
+            if basis == "tsne"
+            else (
+                "UMAP"
+                if basis == "umap"
+                else (
+                    "PC"
+                    if basis == "pca"
+                    else (
+                        basis.replace("draw_graph_", "").upper()
+                        if "draw_graph" in basis
+                        else basis
+                    )
+                )
+            )
+        )
     )
     return component_name
 
@@ -1379,12 +1387,9 @@ def _check_crop_coord(
 def _check_na_color(
     na_color: ColorLike | None, *, img: np.ndarray | None = None
 ) -> ColorLike:
-    if na_color is None:
-        if img is not None:
-            na_color = (0.0, 0.0, 0.0, 0.0)
-        else:
-            na_color = "lightgray"
-    return na_color
+    if na_color is not None:
+        return na_color
+    return (0.0, 0.0, 0.0, 0.0) if img is not None else "lightgray"
 
 
 def _broadcast_args(*args):
