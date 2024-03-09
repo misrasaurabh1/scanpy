@@ -1,6 +1,7 @@
 """\
 Exporting to formats for other software.
 """
+
 from __future__ import annotations
 
 import json
@@ -374,12 +375,19 @@ def _get_color_stats_genes(color_stats, E, gene_list):
 
 def _get_color_stats_custom(color_stats, custom_colors):
     for k, v in custom_colors.items():
-        color_stats[k] = tuple(
-            map(
-                float,
-                (np.mean(v), np.std(v), np.min(v), np.max(v), np.percentile(v, 99)),
-            )
+        mean_v = np.mean(v)
+        std_v = np.std(v)
+        min_v = np.min(v)
+        max_v = np.max(v)
+        percentile_v = np.percentile(v, 99)
+        color_stats[k] = (
+            float(mean_v),
+            float(std_v),
+            float(min_v),
+            float(max_v),
+            float(percentile_v),
         )
+
     return color_stats
 
 
