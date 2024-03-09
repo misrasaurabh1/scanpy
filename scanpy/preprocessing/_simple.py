@@ -2,6 +2,7 @@
 
 Compositions of these functions are found in sc.preprocess.recipes.
 """
+
 from __future__ import annotations
 
 import warnings
@@ -998,7 +999,6 @@ def subsample(
         return X[obs_indices], obs_indices
 
 
-@renamed_arg("target_counts", "counts_per_cell")
 def downsample_counts(
     adata: AnnData,
     counts_per_cell: int | Collection[int] | None = None,
@@ -1008,8 +1008,7 @@ def downsample_counts(
     replace: bool = False,
     copy: bool = False,
 ) -> AnnData | None:
-    """\
-    Downsample counts from count matrix.
+    """Downsample counts from count matrix.
 
     If `counts_per_cell` is specified, each cell will downsampled.
     If `total_counts` is specified, expression matrix will be downsampled to
@@ -1041,7 +1040,6 @@ def downsample_counts(
     `adata.X` : :class:`numpy.ndarray` | :class:`scipy.sparse.spmatrix` (dtype `float`)
         Downsampled counts matrix.
     """
-    # This logic is all dispatch
     total_counts_call = total_counts is not None
     counts_per_cell_call = counts_per_cell is not None
     if total_counts_call is counts_per_cell_call:
@@ -1064,7 +1062,6 @@ def _downsample_per_cell(X, counts_per_cell, random_state, replace):
         counts_per_cell = np.full(n_obs, counts_per_cell)
     else:
         counts_per_cell = np.asarray(counts_per_cell)
-    # np.random.choice needs int arguments in numba code:
     counts_per_cell = counts_per_cell.astype(np.int_, copy=False)
     if not isinstance(counts_per_cell, np.ndarray) or len(counts_per_cell) != n_obs:
         raise ValueError(
@@ -1072,11 +1069,8 @@ def _downsample_per_cell(X, counts_per_cell, random_state, replace):
             "coercible to an `np.ndarray` of length as number of observations"
             " by `np.asarray(counts_per_cell)`."
         )
-    if issparse(X):
-        original_type = type(X)
-        if not isspmatrix_csr(X):
-            X = csr_matrix(X)
-        totals = np.ravel(X.sum(axis=1))  # Faster for csr matrix
+    if issparse(X) and isspmatrix_csr(X):
+        totals = np.ravel(X.sum(axis=1))
         under_target = np.nonzero(totals > counts_per_cell)[0]
         rows = np.split(X.data, X.indptr[1:-1])
         for rowidx in under_target:
@@ -1089,8 +1083,6 @@ def _downsample_per_cell(X, counts_per_cell, random_state, replace):
                 inplace=True,
             )
         X.eliminate_zeros()
-        if original_type is not csr_matrix:  # Put it back
-            X = original_type(X)
     else:
         totals = np.ravel(X.sum(axis=1))
         under_target = np.nonzero(totals > counts_per_cell)[0]
@@ -1111,10 +1103,7 @@ def _downsample_total_counts(X, total_counts, random_state, replace):
     total = X.sum()
     if total < total_counts:
         return X
-    if issparse(X):
-        original_type = type(X)
-        if not isspmatrix_csr(X):
-            X = csr_matrix(X)
+    if issparse(X) and isspmatrix_csr(X):
         _downsample_array(
             X.data,
             total_counts,
@@ -1123,8 +1112,6 @@ def _downsample_total_counts(X, total_counts, random_state, replace):
             inplace=True,
         )
         X.eliminate_zeros()
-        if original_type is not csr_matrix:
-            X = original_type(X)
     else:
         v = X.reshape(np.multiply(*X.shape))
         _downsample_array(v, total_counts, random_state, replace=replace, inplace=True)
