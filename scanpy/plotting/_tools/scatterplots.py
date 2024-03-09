@@ -1050,7 +1050,6 @@ def spatial(
     return axs
 
 
-# Helpers
 def _components_to_dimensions(
     components: str | Collection[str] | None,
     dimensions: Collection[int] | Collection[Collection[int]] | None,
@@ -1059,26 +1058,25 @@ def _components_to_dimensions(
     total_dims: int,
 ) -> list[Collection[int]]:
     """Normalize components/ dimensions args for embedding plots."""
-    # TODO: Deprecate components kwarg
-    ndims = {"2d": 2, "3d": 3}[projection]
+
+    # Assign dictionary value rather than using dictionary directly
+    ndims_dict = {"2d": 2, "3d": 3}
+    ndims = ndims_dict[projection]
+
     if components is None and dimensions is None:
-        dimensions = [tuple(i for i in range(ndims))]
+        dimensions = [tuple(range(ndims))]
     elif components is not None and dimensions is not None:
         raise ValueError("Cannot provide both dimensions and components")
 
-    # TODO: Consider deprecating this
-    # If components is not None, parse them and set dimensions
     if components == "all":
         dimensions = list(combinations(range(total_dims), ndims))
     elif components is not None:
         if isinstance(components, str):
             components = [components]
-        # Components use 1 based indexing
         dimensions = [[int(dim) - 1 for dim in c.split(",")] for c in components]
 
-    if all(isinstance(el, Integral) for el in dimensions):
+    if isinstance(dimensions[0], Integral):  # check only first element
         dimensions = [dimensions]
-    # if all(isinstance(el, Collection) for el in dimensions):
     for dims in dimensions:
         if len(dims) != ndims or not all(isinstance(d, Integral) for d in dims):
             raise ValueError()
@@ -1273,15 +1271,23 @@ def _basis2name(basis):
     component_name = (
         "DC"
         if basis == "diffmap"
-        else "tSNE"
-        if basis == "tsne"
-        else "UMAP"
-        if basis == "umap"
-        else "PC"
-        if basis == "pca"
-        else basis.replace("draw_graph_", "").upper()
-        if "draw_graph" in basis
-        else basis
+        else (
+            "tSNE"
+            if basis == "tsne"
+            else (
+                "UMAP"
+                if basis == "umap"
+                else (
+                    "PC"
+                    if basis == "pca"
+                    else (
+                        basis.replace("draw_graph_", "").upper()
+                        if "draw_graph" in basis
+                        else basis
+                    )
+                )
+            )
+        )
     )
     return component_name
 
