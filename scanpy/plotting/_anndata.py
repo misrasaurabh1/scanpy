@@ -1,5 +1,6 @@
 """Plotting functions for AnnData.
 """
+
 from __future__ import annotations
 
 import collections.abc as cabc
@@ -252,9 +253,7 @@ def _scatter_obs(
     keys = (
         ["grey"]
         if color is None
-        else [color]
-        if isinstance(color, str) or is_color_like(color)
-        else color
+        else [color] if isinstance(color, str) or is_color_like(color) else color
     )
     if title is not None and isinstance(title, str):
         title = [title]
@@ -315,17 +314,27 @@ def _scatter_obs(
         component_name = (
             "DC"
             if basis == "diffmap"
-            else "tSNE"
-            if basis == "tsne"
-            else "UMAP"
-            if basis == "umap"
-            else "PC"
-            if basis == "pca"
-            else "TriMap"
-            if basis == "trimap"
-            else basis.replace("draw_graph_", "").upper()
-            if "draw_graph" in basis
-            else basis
+            else (
+                "tSNE"
+                if basis == "tsne"
+                else (
+                    "UMAP"
+                    if basis == "umap"
+                    else (
+                        "PC"
+                        if basis == "pca"
+                        else (
+                            "TriMap"
+                            if basis == "trimap"
+                            else (
+                                basis.replace("draw_graph_", "").upper()
+                                if "draw_graph" in basis
+                                else basis
+                            )
+                        )
+                    )
+                )
+            )
         )
     else:
         component_name = None
@@ -507,9 +516,7 @@ def _scatter_obs(
                 ncol=(
                     1
                     if len(adata.obs[key].cat.categories) <= 14
-                    else 2
-                    if len(adata.obs[key].cat.categories) <= 30
-                    else 3
+                    else 2 if len(adata.obs[key].cat.categories) <= 30 else 3
                 ),
                 fontsize=legend_fontsize,
             )
@@ -2348,10 +2355,10 @@ def _reorder_categories_after_dendrogram(
 
 
 def _format_first_three_categories(categories):
-    categories = list(categories)
     if len(categories) > 3:
-        categories = categories[:3] + ["etc."]
-    return ", ".join(categories)
+        return ", ".join(categories[:3]) + ", etc."
+    else:
+        return ", ".join(categories)
 
 
 def _get_dendrogram_key(adata, dendrogram_key, groupby):
