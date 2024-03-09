@@ -1273,15 +1273,23 @@ def _basis2name(basis):
     component_name = (
         "DC"
         if basis == "diffmap"
-        else "tSNE"
-        if basis == "tsne"
-        else "UMAP"
-        if basis == "umap"
-        else "PC"
-        if basis == "pca"
-        else basis.replace("draw_graph_", "").upper()
-        if "draw_graph" in basis
-        else basis
+        else (
+            "tSNE"
+            if basis == "tsne"
+            else (
+                "UMAP"
+                if basis == "umap"
+                else (
+                    "PC"
+                    if basis == "pca"
+                    else (
+                        basis.replace("draw_graph_", "").upper()
+                        if "draw_graph" in basis
+                        else basis
+                    )
+                )
+            )
+        )
     )
     return component_name
 
@@ -1371,9 +1379,9 @@ def _check_crop_coord(
     if crop_coord is None:
         return None
     if len(crop_coord) != 4:
-        raise ValueError("Invalid crop_coord of length {len(crop_coord)}(!=4)")
-    crop_coord = tuple(c * scale_factor for c in crop_coord)
-    return crop_coord
+        raise ValueError(f"Invalid crop_coord of length {len(crop_coord)}(!=4)")
+    x, y, w, h = crop_coord
+    return x * scale_factor, y * scale_factor, w * scale_factor, h * scale_factor
 
 
 def _check_na_color(
