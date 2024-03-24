@@ -240,7 +240,8 @@ def _backwards_compat_get_full_X_diffmap(adata: AnnData) -> np.ndarray:
 
 
 def _backwards_compat_get_full_eval(adata: AnnData):
-    if "X_diffmap0" in adata.obs:
+    data_obs_set = set(adata.obs)
+    if "X_diffmap0" in data_obs_set:
         return np.r_[1, adata.uns["diffmap_evals"]]
     else:
         return adata.uns["diffmap_evals"]
