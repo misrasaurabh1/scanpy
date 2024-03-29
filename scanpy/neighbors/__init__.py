@@ -104,6 +104,7 @@ def neighbors(
     transformer
         Approximate kNN search implementation following the API of
         :class:`~sklearn.neighbors.KNeighborsTransformer`.
+        See :doc:`/how-to/knn-transformers` for more details.
         Also accepts the following known options:
 
         `None` (the default)
@@ -162,6 +163,10 @@ def neighbors(
     >>> transformer = KNeighborsTransformer(n_neighbors=10, metric='manhattan', algorithm='kd_tree')
     >>> sc.pp.neighbors(adata, transformer=transformer)
     >>> # now you can e.g. access the index: `transformer._tree`
+
+    See also
+    --------
+    :doc:`/how-to/knn-transformers`
     """
     start = logg.info("computing neighbors")
     adata = adata.copy() if copy else adata
@@ -250,24 +255,16 @@ def _make_forest_dict(forest):
     d = {}
     props = ("hyperplanes", "offsets", "children", "indices")
     for prop in props:
+        data_list = [getattr(tree, prop) for tree in forest]
+        sizes = np.array([data.shape[0] for data in data_list])
         d[prop] = {}
-        sizes = np.fromiter(
-            (getattr(tree, prop).shape[0] for tree in forest), dtype=int
+        d[prop]["start"] = np.cumsum(sizes) - sizes
+        dims = (
+            (sizes.sum(),)
+            if prop == "offsets"
+            else (sizes.sum(), data_list[0].shape[1])
         )
-        d[prop]["start"] = np.zeros_like(sizes)
-        if prop == "offsets":
-            dims = sizes.sum()
-        else:
-            dims = (sizes.sum(), getattr(forest[0], prop).shape[1])
-        dtype = getattr(forest[0], prop).dtype
-        dat = np.empty(dims, dtype=dtype)
-        start = 0
-        for i, size in enumerate(sizes):
-            d[prop]["start"][i] = start
-            end = start + size
-            dat[start:end] = getattr(forest[i], prop)
-            start = end
-        d[prop]["data"] = dat
+        d[prop]["data"] = np.concatenate(data_list)
     return d
 
 
@@ -500,7 +497,7 @@ class Neighbors:
         *,
         use_rep: str | None = None,
         knn: bool = True,
-        method: _Method = "umap",
+        method: _Method | None = "umap",
         transformer: KnnTransformerLike | _KnownTransformer | None = None,
         metric: _Metric | _MetricFn = "euclidean",
         metric_kwds: Mapping[str, Any] = MappingProxyType({}),
@@ -517,10 +514,14 @@ class Neighbors:
         {use_rep}
         knn
             Restrict result to `n_neighbors` nearest neighbors.
+        method
+            See :func:`scanpy.pp.neighbors`.
+            If `None`, skip calculating connectivities.
 
         Returns
         -------
-        Writes sparse graph attributes `.distances` and `.connectivities`.
+        Writes sparse graph attributes `.distances` and,
+        if `method` is not `None`, `.connectivities`.
         """
         from ..tools._utils import _choose_representation
 
@@ -571,8 +572,8 @@ class Neighbors:
                     self._rp_forest = _make_forest_dict(index)
                 except Exception:  # TODO catch the correct exception
                     pass
-
         start_connect = logg.debug("computed neighbors", time=start_neighbors)
+
         if method == "umap":
             self._connectivities = _connectivity.umap(
                 knn_indices,
@@ -584,25 +585,26 @@ class Neighbors:
             self._connectivities = _connectivity.gauss(
                 self._distances, self.n_neighbors, knn=self.knn
             )
-        else:
+        elif method is not None:
             msg = f"{method!r} should have been coerced in _handle_transform_args"
             raise AssertionError(msg)
-        logg.debug("computed connectivities", time=start_connect)
         self._number_connected_components = 1
         if issparse(self._connectivities):
             from scipy.sparse.csgraph import connected_components
 
             self._connected_components = connected_components(self._connectivities)
             self._number_connected_components = self._connected_components[0]
+        if method is not None:
+            logg.debug("computed connectivities", time=start_connect)
 
     def _handle_transformer(
         self,
-        method: _Method | Literal["gauss"],
+        method: _Method | Literal["gauss"] | None,
         transformer: KnnTransformerLike | _KnownTransformer | None,
         *,
         knn: bool,
         kwds: KwdsForTransformer,
-    ) -> tuple[_Method, KnnTransformerLike, bool]:
+    ) -> tuple[_Method | None, KnnTransformerLike, bool]:
         """Return effective `method` and transformer.
 
         `method` will be coerced to `'gauss'` or `'umap'`.
@@ -620,8 +622,8 @@ class Neighbors:
         use_dense_distances = (
             kwds["metric"] == "euclidean" and self._adata.n_obs < 8192
         ) or not knn
-        shortcut = transformer is None and (
-            use_dense_distances or self._adata.n_obs < 4096
+        shortcut = transformer == "sklearn" or (
+            transformer is None and (use_dense_distances or self._adata.n_obs < 4096)
         )
 
         # Coerce `method` to 'gauss' or 'umap'
@@ -631,12 +633,12 @@ class Neighbors:
                 raise ValueError(msg)
             method = "umap"
             transformer = "rapids"
-        elif method not in (methods := set(get_args(_Method))):
+        elif method not in (methods := set(get_args(_Method))) and method is not None:
             msg = f"`method` needs to be one of {methods}."
             raise ValueError(msg)
 
         # Validate `knn`
-        conn_method = "gauss" if method == "gauss" else "umap"
+        conn_method = method if method in {"gauss", None} else "umap"
         if not knn and not (conn_method == "gauss" and transformer is None):
             # “knn=False” seems to be only intended for method “gauss”
             msg = f"`method = {method!r} only with `knn = True`."
@@ -646,11 +648,14 @@ class Neighbors:
         if shortcut:
             from sklearn.neighbors import KNeighborsTransformer
 
-            assert transformer is None
+            assert transformer in {None, "sklearn"}
+            n_neighbors = self._adata.n_obs - 1
+            if knn:  # only obey n_neighbors arg if knn set
+                n_neighbors = min(n_neighbors, kwds["n_neighbors"])
             transformer = KNeighborsTransformer(
                 algorithm="brute",
                 n_jobs=settings.n_jobs,
-                n_neighbors=self._adata.n_obs - 1,  # ignore n_neighbors
+                n_neighbors=n_neighbors,
                 metric=kwds["metric"],
                 metric_params=dict(kwds["metric_params"]),  # needs dict
                 # no random_state
